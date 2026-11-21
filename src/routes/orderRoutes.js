@@ -17,7 +17,8 @@ import {
 
 const router = express.Router();
 
-// Customer
+// Customer / General Orders
+router.get("/orders", verifyToken, verifyNotBlocked, getCustomerOrders);
 router.post("/orders", verifyToken, verifyNotBlocked, createOrder);
 router.get("/orders/customer", verifyToken, verifyNotBlocked, getCustomerOrders);
 router.patch("/orders/:id/cancel", verifyToken, verifyNotBlocked, cancelOrder);
@@ -26,7 +27,7 @@ router.patch("/orders/:id/cancel", verifyToken, verifyNotBlocked, cancelOrder);
 router.get("/vendor/orders", verifyToken, verifyNotBlocked, verifyVendor, getVendorOrders);
 router.patch("/orders/:id/status", verifyToken, verifyNotBlocked, verifyVendor, updateOrderStatus);
 
-// Common / Admin
+// Details & Admin
 router.get("/orders/:id", verifyToken, verifyNotBlocked, getOrderById);
 router.get("/admin/orders", verifyToken, verifyNotBlocked, verifyAdmin, getAllOrders);
 

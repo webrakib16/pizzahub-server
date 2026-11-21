@@ -34,7 +34,9 @@ export const getCollections = () => {
   const database = getDB();
   return {
     usersCollection: database.collection("user"),
+    sessionsCollection: database.collection("session"),
     menuItemsCollection: database.collection("menuItems"),
+    vendorShopsCollection: database.collection("vendorShops"),
     ordersCollection: database.collection("orders"),
     transactionsCollection: database.collection("transactions"),
     vendorsCollection: database.collection("vendors"),

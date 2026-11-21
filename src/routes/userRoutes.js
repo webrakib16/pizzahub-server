@@ -17,16 +17,20 @@ import {
 const router = express.Router();
 
 // Public / Auth sync
-router.post("/", saveUser);
+router.post("/users", saveUser);
 
 // User profile & role
-router.get("/me", verifyToken, verifyNotBlocked, getMyProfile);
-router.get("/role/:email", verifyToken, getUserRole);
-router.patch("/profile", verifyToken, verifyNotBlocked, updateProfile);
+router.get("/users/me", verifyToken, verifyNotBlocked, getMyProfile);
+router.get("/users/role/:email", verifyToken, getUserRole);
+router.patch("/users/profile", verifyToken, verifyNotBlocked, updateProfile);
 
 // Admin user management
-router.get("/", verifyToken, verifyNotBlocked, verifyAdmin, getAllUsers);
-router.patch("/:id/block", verifyToken, verifyNotBlocked, verifyAdmin, toggleBlockUser);
-router.patch("/:id/role", verifyToken, verifyNotBlocked, verifyAdmin, updateUserRole);
+router.get("/users", verifyToken, verifyNotBlocked, verifyAdmin, getAllUsers);
+router.patch("/users/:id/block", verifyToken, verifyNotBlocked, verifyAdmin, toggleBlockUser);
+router.patch("/users/:id/role", verifyToken, verifyNotBlocked, verifyAdmin, updateUserRole);
+
+// Also mount direct admin routes as specified in AGENTS.md
+router.get("/admin/users", verifyToken, verifyNotBlocked, verifyAdmin, getAllUsers);
+router.patch("/admin/users/:id/block", verifyToken, verifyNotBlocked, verifyAdmin, toggleBlockUser);
 
 export default router;

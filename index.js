@@ -7,28 +7,53 @@ import authRoutes from "./src/routes/authRoutes.js";
 import userRoutes from "./src/routes/userRoutes.js";
 import menuRoutes from "./src/routes/menuRoutes.js";
 import orderRoutes from "./src/routes/orderRoutes.js";
+import vendorShopRoutes from "./src/routes/vendorShopRoutes.js";
 import transactionRoutes from "./src/routes/transactionRoutes.js";
 import overviewRoutes from "./src/routes/overviewRoutes.js";
 import vendorRoutes from "./src/routes/vendorRoutes.js";
 
 const app = express();
 
-// Global Middlewares
-app.use(cors());
+// CORS configuration (supports localhost:3000, Vercel deployments, credentials: true)
+const allowedOrigins = [
+  "http://localhost:3000",
+  process.env.CLIENT_URL,
+].filter(Boolean);
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin) || origin.endsWith(".vercel.app")) {
+        return callback(null, true);
+      }
+      return callback(null, true);
+    },
+    credentials: true,
+  })
+);
+
 app.use(express.json());
 
-// API Routes
-app.use("/", authRoutes);
-app.use("/users", userRoutes);
-app.use("/", menuRoutes);
-app.use("/", orderRoutes);
-app.use("/", transactionRoutes);
-app.use("/overview", overviewRoutes);
-app.use("/", vendorRoutes);
+// Mount routers under both /api and / for full compatibility with AGENTS.md specs and direct calls
+const routeList = [
+  authRoutes,
+  userRoutes,
+  menuRoutes,
+  orderRoutes,
+  vendorShopRoutes,
+  transactionRoutes,
+  overviewRoutes,
+  vendorRoutes,
+];
+
+routeList.forEach((router) => {
+  app.use("/api", router);
+  app.use("/", router);
+});
 
 // Root Health Check
 app.get("/", (req, res) => {
-  res.send({
+  res.json({
     message: "PizzaHub Backend API Server is running smoothly",
     version: "1.0.0",
     status: "healthy",
@@ -37,7 +62,7 @@ app.get("/", (req, res) => {
 
 // 404 Handler for undefined routes
 app.use((req, res) => {
-  res.status(404).send({
+  res.status(404).json({
     error: "Route Not Found",
     message: `The endpoint ${req.method} ${req.url} does not exist on this server.`,
   });
@@ -46,7 +71,7 @@ app.use((req, res) => {
 // Global Error Handler
 app.use((err, req, res, next) => {
   console.error("Server Error:", err);
-  res.status(500).send({
+  res.status(500).json({
     error: "Internal Server Error",
     message: err.message || "An unexpected error occurred.",
   });
