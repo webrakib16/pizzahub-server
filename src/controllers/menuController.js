@@ -165,7 +165,7 @@ export const createMenuItem = async (req, res) => {
   try {
     const vendorId = req.user.id;
     const vendorEmail = req.user.email;
-    const isPremium = req.user.subscription === "premium";
+    const isPremium = req.user.subscription === "premium" || req.user.isPremium === true;
 
     const { vendorShopsCollection, menuItemsCollection } = getCollections();
 
@@ -312,7 +312,7 @@ export const toggleAvailability = async (req, res) => {
     const id = req.params.id;
     const { isActive } = req.body;
     const vendorId = req.user.id;
-    const isPremium = req.user.subscription === "premium";
+    const isPremium = req.user.subscription === "premium" || req.user.isPremium === true;
 
     if (typeof isActive !== "boolean") {
       return res.status(400).json({ error: "isActive (boolean) is required" });

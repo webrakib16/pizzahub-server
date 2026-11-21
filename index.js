@@ -11,6 +11,8 @@ import vendorShopRoutes from "./src/routes/vendorShopRoutes.js";
 import transactionRoutes from "./src/routes/transactionRoutes.js";
 import overviewRoutes from "./src/routes/overviewRoutes.js";
 import vendorRoutes from "./src/routes/vendorRoutes.js";
+import paymentRoutes from "./src/routes/paymentRoutes.js";
+import { handleStripeWebhook } from "./src/controllers/paymentController.js";
 
 const app = express();
 
@@ -18,6 +20,7 @@ const app = express();
 const allowedOrigins = [
   "http://localhost:3000",
   process.env.CLIENT_URL,
+  process.env.NEXT_PUBLIC_APP_URL,
 ].filter(Boolean);
 
 app.use(
@@ -32,6 +35,14 @@ app.use(
   })
 );
 
+// ── Stripe Webhook endpoint mounted BEFORE express.json() ─────────────────────
+// Stripe requires the raw buffer body to verify the cryptographic webhook signature
+app.post(
+  ["/api/webhooks/stripe", "/webhooks/stripe"],
+  express.raw({ type: "application/json" }),
+  handleStripeWebhook
+);
+
 app.use(express.json());
 
 // Mount routers under both /api and / for full compatibility with AGENTS.md specs and direct calls
@@ -44,6 +55,7 @@ const routeList = [
   transactionRoutes,
   overviewRoutes,
   vendorRoutes,
+  paymentRoutes,
 ];
 
 routeList.forEach((router) => {

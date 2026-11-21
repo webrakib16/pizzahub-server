@@ -226,14 +226,75 @@ Requires `req.user.role === "vendor"` or `req.user.role === "admin"`. Otherwise 
 
 ---
 
-### G. Subscription & Transactions
-- **`POST /api/subscription/upgrade`** *(Vendor Auth Required)*
-  - **Purpose:** Upgrades vendor to Premium plan. Updates `user.subscription = "premium"`, unlocks unlimited menu items, and records transaction.
-  - **Body:** `{ amount?: 500, paymentMethod?: "card" }`.
+### G. Vendor Stripe Premium Subscription & Transactions
+
+#### Architectural Flow (Strict Requirement)
+```
+[Next.js Client] ──> [Express Backend] ──> [Stripe Checkout] ──> [Vendor Completes Payment]
+                                                    │
+[Next.js Success Page] <── (Informs Vendor Only)   ▼
+                                             [Stripe Webhook Event]
+                                                    │
+                                                    ▼
+                                            [Express Backend] (Verifies Signature & Idempotency)
+                                                    │
+                                                    ▼
+                                            [MongoDB Database] (Updates Vendor & Records Transaction)
+```
+> **Core Security Principle:** *"The success page is for the user. The webhook is for the backend."*  
+> **Never** activate Premium based on frontend redirects or URL queries. Premium status is granted **only** after verified Stripe webhook event confirmation.
+
+#### Endpoints
+
+- **`POST /api/vendor/subscription/checkout`** *(Vendor Auth Required)*
+  - **Purpose:** Initiates a Stripe Checkout Session for Vendor Premium Subscription.
+  - **Pricing:** ৳499 BDT (`unit_amount: 49900` in poisha, one-time payment).
+  - **Security:** Requires logged-in vendor (`verifyToken`, `verifyNotBlocked`, `verifyVendor`).
+  - **Metadata Attached:** `{ vendorId, vendorName, vendorEmail, plan: "Premium" }`.
+  - **Success URL:** `${NEXT_PUBLIC_APP_URL}/vendor/subscription/success?session_id={CHECKOUT_SESSION_ID}`.
+  - **Cancel URL:** `${NEXT_PUBLIC_APP_URL}/vendor/subscription/cancel`.
+  - **Response:** `{ url: string }` (Stripe Hosted Checkout URL).
+
+- **`GET /api/vendor/subscription/status`** *(Vendor Auth Required)*
+  - **Purpose:** Checks current vendor's subscription plan, active status (`isPremium: boolean`), and date.
+  - **Response:** `{ isPremium: boolean, plan: "Premium" | "Free", premiumSince: string | null }`.
+
+- **`POST /api/webhooks/stripe`** *(Public endpoint, Stripe Signature Verified)*
+  - **Purpose:** Listens to asynchronous Stripe payment confirmation events (`checkout.session.completed`).
+  - **Middleware Requirement:** Mounted with `express.raw({ type: "application/json" })` **before** `express.json()` to preserve raw body buffers.
+  - **Signature Verification:** Uses `stripe.webhooks.constructEvent(req.body, signature, STRIPE_WEBHOOK_SECRET)`.
+  - **Idempotency Rule:** Checks MongoDB `transactions` collection for duplicate `stripeSessionId`. If duplicate, skips re-processing and returns `200 { received: true, duplicate: true }`.
+  - **Database Updates on Successful Payment:**
+    1. Records transaction in `transactions` collection (`vendorId`, `vendorName`, `vendorEmail`, `plan: "Premium"`, `amount: 499`, `currency: "bdt"`, `status: "success"`, `stripeSessionId`, `createdAt`).
+    2. Updates `user` collection: `{ $set: { subscription: "premium", isPremium: true, premiumSince: new Date(), updatedAt: new Date() } }`.
+    3. Updates `vendorShops` collection: `{ $set: { isPremium: true, subscription: "premium", updatedAt: new Date() } }`.
+    4. Updates `vendors` collection (if present): `{ $set: { subscription: "premium", isPremium: true, updatedAt: new Date() } }`.
+  - **Response:** `200 { received: true }`.
+
 - **`GET /api/transactions`** *(Admin Auth Required)*
-  - **Purpose:** Platform transaction records.
+  - **Purpose:** Platform transaction records for admin oversight.
+  - **Response:** Array of transaction objects sorted newest first.
+
 - **`GET /api/transactions/vendor`** *(Vendor Auth Required)*
   - **Purpose:** Vendor's personal subscription billing history.
+
+---
+
+### H. Backend Rules: What to Do & What NOT to Do
+
+#### ✅ What the Backend MUST Do:
+1. **Enforce 3-Item Limit for Free Vendors:** In `POST /api/vendor/menu`, count active items for the vendor. If `!isPremium && count >= 3`, reject with `400 Free plan limit reached`.
+2. **Unlock Unlimited Items for Premium:** If `isPremium === true`, allow creating more than 3 active menu items without restriction.
+3. **Keep Stripe Secret Keys on the Backend:** `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` must exist strictly on the Express server and must never be exposed to the client.
+4. **Customer Orders Use Direct Order (Cash on Delivery):** Customer pizza checkout does NOT use Stripe. Orders are placed directly through `POST /api/orders` with payment method COD.
+5. **Shop Profile Gate:** Vendors must have completed their shop profile (`isProfileComplete: true`) in `vendorShops` before adding menu items.
+6. **Assign Shop Name to Menu Items:** Always read `shopName` from `vendorShops` when creating a menu item, not `user.name`.
+
+#### ❌ What the Backend MUST NEVER Do:
+1. **Never use Stripe for customer pizza orders.** Stripe is exclusively for Vendor Premium Subscriptions (৳499 BDT).
+2. **Never activate Premium on client redirects.** Only activate through verified Stripe webhook events.
+3. **Never allow vendors to modify admin-only fields** (`status`, `isActive`) in `PATCH /api/vendor/menu/:id`. Strip these fields before updating.
+4. **Never allow blocked users (`blocked: true`)** to access protected endpoints. Always reject with `403 Forbidden`.
 
 ---
 

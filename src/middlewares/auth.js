@@ -20,11 +20,14 @@ const parseCookies = (cookieHeader) => {
 export const verifyToken = async (req, res, next) => {
   try {
     const cookies = parseCookies(req.headers.cookie);
-    const token =
+    const rawToken =
+      req.headers.authorization?.replace(/^Bearer\s+/i, "") ||
       cookies["better-auth.session_token"] ||
-      req.headers.authorization?.replace(/^Bearer\s+/i, "");
+      cookies["__Secure-better-auth.session_token"];
 
-    if (!token) {
+    const token = rawToken;
+
+    if (!rawToken) {
       return res.status(401).json({
         error: "Unauthorized",
         message: "Access denied. No session or authentication token provided.",
@@ -33,8 +36,11 @@ export const verifyToken = async (req, res, next) => {
 
     const { sessionsCollection, usersCollection } = getCollections();
 
-    // 1. Try Better Auth session in MongoDB
-    const session = await sessionsCollection.findOne({ token });
+    // 1. Try Better Auth session in MongoDB (handles clean token and signed token "token.sig")
+    const cleanToken = rawToken.includes(".") ? rawToken.split(".")[0] : rawToken;
+    const session = await sessionsCollection.findOne({
+      $or: [{ token: rawToken }, { token: cleanToken }],
+    });
     if (session) {
       if (session.expiresAt && new Date(session.expiresAt) < new Date()) {
         return res.status(401).json({ error: "Session expired", message: "Session expired" });
@@ -65,7 +71,8 @@ export const verifyToken = async (req, res, next) => {
         email: user.email,
         role: user.role || "customer",
         blocked: user.blocked || false,
-        subscription: user.subscription || "free",
+        subscription: user.subscription || (user.isPremium ? "premium" : "free"),
+        isPremium: Boolean(user.isPremium || user.subscription === "premium"),
       };
       req.decoded = req.user;
       return next();
@@ -108,7 +115,8 @@ export const verifyToken = async (req, res, next) => {
           email: user.email,
           role: user.role || "customer",
           blocked: user.blocked || false,
-          subscription: user.subscription || "free",
+          subscription: user.subscription || (user.isPremium ? "premium" : "free"),
+          isPremium: Boolean(user.isPremium || user.subscription === "premium"),
         };
         req.decoded = req.user;
         next();
