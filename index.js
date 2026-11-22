@@ -43,6 +43,14 @@ app.post(
   handleStripeWebhook
 );
 
+// Friendly GET check for browser visits
+app.get(["/api/webhooks/stripe", "/webhooks/stripe"], (req, res) => {
+  res.json({
+    message: "Stripe Webhook endpoint is active and listening for POST events from Stripe.",
+    status: "active",
+  });
+});
+
 app.use(express.json());
 
 // Mount routers under both /api and / for full compatibility with AGENTS.md specs and direct calls
