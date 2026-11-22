@@ -35,7 +35,7 @@ app.use(
   })
 );
 
-// ── Stripe Webhook endpoint mounted BEFORE express.json() ─────────────────────
+// Stripe Webhook endpoint mounted BEFORE express.json()
 // Stripe requires the raw buffer body to verify the cryptographic webhook signature
 app.post(
   ["/api/webhooks/stripe", "/webhooks/stripe"],
