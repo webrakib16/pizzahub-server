@@ -1,9 +1,9 @@
 import { MongoClient, ServerApiVersion, ObjectId } from "mongodb";
 import "dotenv/config";
 
-const uri = process.env.MONGODB_BETTER_AUTH_URI;
+const uri = process.env.MONGODB_BETTER_AUTH_URI || process.env.MONGODB_URI;
 if (!uri) {
-  throw new Error("MONGODB_BETTER_AUTH_URI is not set in environment variables");
+  throw new Error("MONGODB_BETTER_AUTH_URI or MONGODB_URI is not set in environment variables");
 }
 
 export const client = new MongoClient(uri, {
