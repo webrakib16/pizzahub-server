@@ -63,7 +63,7 @@ routeList.forEach((router) => {
   app.use("/", router);
 });
 
-// Root Health Check
+// Root Health Check.
 app.get("/", (req, res) => {
   res.json({
     message: "PizzaHub Backend API Server is running smoothly",
