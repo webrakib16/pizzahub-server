@@ -91,7 +91,7 @@ app.use((err, req, res, next) => {
 
 const port = process.env.PORT || 5000;
 
-// Connect to MongoDB and start server.
+// Connect to MongoDB and start server
 connectDB()
   .then(() => {
     app.listen(port, () => {
