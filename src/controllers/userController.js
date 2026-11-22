@@ -1,6 +1,6 @@
 import { getCollections, toIdQuery } from "../config/db.js";
 
-// Upsert user upon sign-in/up
+// Upsert user upon sign-in/up.
 export const saveUser = async (req, res) => {
   try {
     const { name, email, role, image } = req.body || {};
